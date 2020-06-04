@@ -1,0 +1,172 @@
+CNV detection from RNAseq
+
+hg38.fa.gz - "Soft-masked" assembly sequence in one file.
+
+May 25, 2020
+Familiarized myself with command line, cat commands, navigation, directory
+#Installed homebrew
+xcode-select --install
+ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+
+#Set up pyenv, pyenv global, pyenv version, which python (https://opensource.com/article/19/5/python-3-default-mac)
+#Updated python to 3.8.2, updated pip to 20.1.1
+brew install pyenv 
+pyenv install 3.8.2
+pyenv global 3.8.2
+echo -e 'if command -v pyenv 1>/dev/null 2>&1; then\n  eval "$(pyenv init -)"\nfi' >> ~/.zshrc
+
+
+#Installed cutadapt 2.10, 
+pip install cutadapt
+
+#Downloaded and installed TrimGalore 0.6.5
+chmod +x trim_galore
+ln -s /path/to/trim_galore /usr/local/bin/trim_galore
+
+# Download .zip of FastQc 0.11.9
+# cd to expanded folder
+chmod +x fastqc
+ln -s /path/to/fastqc /usr/local/bin/fastqc
+
+#Installed STAR (not STARlong), it was already compiled
+chmod +x STAR
+ln -s /path/to/STAR /usr/local/bin/STAR
+
+May 26, 2020
+Updated R to 4.0
+#Updated BioCManager to 3.1.1
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install()
+
+#Installing CaSpER dependencies
+BiocManager::install(c('HMMcopy', 'GenomeGraphs', 'biomaRt', 'limma', 'GO.db', 'org.Hs.eg.db', 'GOstats'))
+
+
+#Installed BAFExtract, downloaded .zip
+#cd to expanded folder
+make BAFExtract
+chmod +x BAFExtract
+ln -s /path/to/BAFExtract /usr/local/bin/BAFExtract
+
+#collecting list of identifiers in hg38.fa file
+cat hg38.fa | grep ">"
+
+#Download samtools 1.10
+make
+make install
+chmod +x samtools
+ln -s /path/to/samtools /usr/local/bin/samtools
+
+
+May 27, 2020
+#compiling list of identifiers
+grep ">" hg38.fa | sed 's/>//' > IDs.txt
+grep -v -E -- "random|alt|Un" IDs.txt > chr_IDs.txt
+
+#extracting sequences from fasta file based on identifier
+samtools faidx hg38.fa `cat chr_IDs.txt` -o hg38test.fa
+#moved original hg38 to /Compiled, renamed hg38test.fa to hg38.fa
+
+#Trimming FastQ files with TrimGalore
+#Output folder
+mkdir 01_trimmed
+
+#For loop to performing trim_galore on all fastq.gz files in current directory
+for file in `find . -name "*.fastq.gz" -type f | sort`; do
+	trim_galore $file --fastqc -o 01_trimmed/
+done
+
+#Generating STAR Index
+#cd directory containing genome file, annotation file
+STAR --runThreadN 24 --runMode genomeGenerate --genomeDir ./ --genomeFastaFiles hg38.fa --sjdbGTFfile hg38.ensGene.gtf
+
+#crashed on computer, STAR requires at least 30GB of RAM to run
+#switched to Windows 10 pC with 32 GB of RAM
+#Installed linux bash shell/Windows subsystem for linux (https://www.howtogeek.com/249966/how-to-install-and-use-the-linux-bash-shell-on-windows-10/)
+#Installed Ubuntu
+sudo apt-get update -y
+sudo apt-get install -y rna-star
+
+#transferred hg38.fa and hg38.ensGene.gtf to Windows PC
+#explorer.exe . to open WSL in windows
+#In directory with genome and genome annotation file
+STAR --runThreadN 24 --runMode genomeGenerate --genomeDir ./ --genomeFastaFiles hg38.fa --sjdbGTFfile hg38.ensGene.gtf
+
+#align trimmed FASTQ files to hg38 genome
+STAR --genomeDir . --readFilesIn ./00_raw_sample/01_trimmed/DCAF_A_S62_L007_R1_001_trimmed.fq.gz --readFilesCommand zcat --outSAMtype BAM Unsorted --outReadsUnmapped Fastx --quantMode GeneCounts --outFilterMultimapNmax 10 --outFileNamePrefix ./Aligned/DCAF_A_S62_L007_R1_001
+
+#create list of trimmed fastq files
+find . -name "*.fq.gz" -type f | sed 's/.//' > input_toSTAR.list
+
+May 28, 2020
+#make list of trimmed fastq files and use as input for STAR aligner
+for file in $(find ./00_raw_sample/01_trimmed/ -name "*.fq.gz" -type f | sed s~./00_raw_sample/01_trimmed/~~)
+do
+	STAR --genomeDir . --readFilesIn ./00_raw_sample/01_trimmed/$file --readFilesCommand zcat --outSAMtype BAM Unsorted --outReadsUnmapped Fastx --quantMode GeneCounts --outFilterMultimapNmax 10 --outFileNamePrefix ./Aligned/$file
+done
+
+#testing various syntax for find, for loop and sed
+for file in $(find ./00_raw_sample/01_trimmed/ -name "*.fq.gz" -type f | sed s~./00_raw_sample/01_trimmed/~~)
+do
+	echo "$file"
+done
+
+find ./00_raw_sample/01_trimmed/ -name "*.fq.gz" -type f > test.txt
+
+find ./00_raw_sample/01_trimmed/ -name "*.fq.gz" -type f | sed s~./00_raw_sample/01_trimmed/~~ > test.txt
+
+for file in $(cat test.txt)
+do
+	echo "$file"
+done
+
+#install BAFExtract on WSL
+#download .zip
+#ALWAYS remember / before path!!!!!
+make BAFExtract
+sudo chmod +x BAFExtract
+sudo ln -s /home/smeas/BAFExtract-master/bin/BAFExtract /usr/local/bin
+
+#copy files from WSL to external drive D 
+cp -avr ./RNASeq /mnt/d/ 
+
+#install R for Windows10
+#install RStudio
+#Install Rtools, follow instructions
+dependencies = TRUE, INSTALL_opts = '--no-lock'
+#backports dependency for devtools had trouble installing, had to 'unlock' folder
+install.packages("backports", dependencies = TRUE, INSTALL_opts = '--no-lock')
+
+
+May 29,2020
+
+#perform BAFExtract to create genome_fasta_pileup_dir, creates an index of each indivdual chromosome eg 1.bin, 16.bin, M.bin, X.bin
+BAFExtract -preprocess_FASTA ./RNASeq/hg38.fa ./RNASeq/genome_fasta_pileup  
+
+#installed UCSC genome browser 'kent' bioinformatic utilities (https://genome-source.gi.ucsc.edu/gitlist/kent.git/blob/master/src/userApps/README)
+ rsync -a -P rsync://hgdownload.soe.ucsc.edu/genome/admin/exe/linux.x86_64/ ./kentUtils
+
+#gathering size of chromosomes
+fetchChromSizes ./hg38.fa > hg38.list 
+
+#filtering out alt, random and Un
+grep -v -E -- "random|alt|Un" hg38test.list > hg38.list
+
+#perform BAFExtract on file
+#output folder
+DIROUT=05_BAFExtract
+
+for file in $(find ./Aligned -type f -name "*fq.gzAligned.out.bam")
+do
+	bam_file=$file;
+	output_baf_file=$DIROUT"/"`basename $file .bam`".snp";
+	samtools view $bam_file | BAFExtract -generate_compressed_pileup_per_SAM stdin hg38.list $DIROUT 50 0;
+	BAFExtract -get_SNVs_per_pileup  hg38.list $DIROUT ./genome_fasta_pileup 20 4 0.1 $output_baf_file;
+done
+
+#June 1, 2020
+#Reading up on RNASeq and CaSpER
+
+
+
