@@ -2,7 +2,6 @@ CNV detection from RNAseq
 
 hg38.fa.gz - "Soft-masked" assembly sequence in one file.
 
-May 25, 2020
 Familiarized myself with command line, cat commands, navigation, directory
 #Installed homebrew
 xcode-select --install
@@ -32,7 +31,6 @@ ln -s /path/to/fastqc /usr/local/bin/fastqc
 chmod +x STAR
 ln -s /path/to/STAR /usr/local/bin/STAR
 
-May 26, 2020
 Updated R to 4.0
 #Updated BioCManager to 3.1.1
 if (!requireNamespace("BiocManager", quietly = TRUE))
@@ -59,7 +57,6 @@ chmod +x samtools
 ln -s /path/to/samtools /usr/local/bin/samtools
 
 
-May 27, 2020
 #compiling list of identifiers
 grep ">" hg38.fa | sed 's/>//' > IDs.txt
 grep -v -E -- "random|alt|Un" IDs.txt > chr_IDs.txt
@@ -99,7 +96,7 @@ STAR --genomeDir . --readFilesIn ./00_raw_sample/01_trimmed/DCAF_A_S62_L007_R1_0
 #create list of trimmed fastq files
 find . -name "*.fq.gz" -type f | sed 's/.//' > input_toSTAR.list
 
-May 28, 2020
+
 #make list of trimmed fastq files and use as input for STAR aligner
 for file in $(find ./00_raw_sample/01_trimmed/ -name "*.fq.gz" -type f | sed s~./00_raw_sample/01_trimmed/~~)
 do
@@ -139,8 +136,6 @@ dependencies = TRUE, INSTALL_opts = '--no-lock'
 install.packages("backports", dependencies = TRUE, INSTALL_opts = '--no-lock')
 
 
-May 29,2020
-
 #perform BAFExtract to create genome_fasta_pileup_dir, creates an index of each indivdual chromosome eg 1.bin, 16.bin, M.bin, X.bin
 BAFExtract -preprocess_FASTA ./RNASeq/hg38.fa ./RNASeq/genome_fasta_pileup  
 
@@ -155,18 +150,153 @@ grep -v -E -- "random|alt|Un" hg38test.list > hg38.list
 
 #perform BAFExtract on file
 #output folder
-DIROUT=05_BAFExtract
+DIROUT=04_BAFExtract
 
-for file in $(find ./Aligned -type f -name "*fq.gzAligned.out.bam")
+for file in $(find /home/smeas/RNASeq/03_aligned -type f -name "*Aligned.out.bam")
 do
 	bam_file=$file;
-	output_baf_file=$DIROUT"/"`basename $file .bam`".snp";
-	samtools view $bam_file | BAFExtract -generate_compressed_pileup_per_SAM stdin hg38.list $DIROUT 50 0;
-	BAFExtract -get_SNVs_per_pileup  hg38.list $DIROUT ./genome_fasta_pileup 20 4 0.1 $output_baf_file;
+	output_baf_file=$DIROUT"/"`basename $file _001_trimmed.fq.gzAligned.out.bam`".snp";
+	samtools view $bam_file | BAFExtract -generate_compressed_pileup_per_SAM stdin /home/smeas/RNASeq/hg38.list /home/smeas/RNASeq/$DIROUT 50 0;
+	BAFExtract -get_SNVs_per_pileup /home/smeas/RNASeq/hg38.list /home/smeas/RNASeq/$DIROUT /home/smeas/RNASeq/genome_fasta_pileup 20 4 0.1 /home/smeas/RNASeq/$output_baf_file;
 done
 
-#June 1, 2020
-#Reading up on RNASeq and CaSpER
+#Loading STAR *ReadsperGene.out.tab in RStudio
+dataset1 <- read.table("C:/Users/steve/Documents/03_aligned/DCAF_A_S62_L007_R1_001_trimmed.fq.gzReadsPerGene.out.tab",sep="\t", skip = 4, header = F)
+
+dataset2 <- read.table("C:/Users/steve/Documents/03_aligned/GFP_A_S57_L007_R1_001_trimmed.fq.gzReadsPerGene.out.tab",sep="\t", skip = 4, header = F)
+
+dataset3 <- read.table("C:/Users/steve/Documents/03_aligned/KO_DCAF_A_S72_L007_R1_001_trimmed.fq.gzReadsPerGene.out.tab",sep="\t", skip = 4, header = F)
+
+dataset4 <- read.table("C:/Users/steve/Documents/03_aligned/KO_GFP_A_S67_L007_R1_001_trimmed.fq.gzReadsPerGene.out.tab",sep="\t", skip = 4, header = F)
+
+#to print selection from a datatable in R
+mydata$V1[1:x]
+mydata[1:x,1:y]
+
+#counts in each column, V1 - genes, V2 - non-stranded, V3 - positive, V4 - negative
+#Hence should select V4 with most counts
+DCAF
+sum(mydata$V2) = 7586
+sum(mydata$V3) = 370
+sum(mydata$V4) = 7825
+GFP
+sum(mydata$V2) = 7455
+sum(mydata$V3) = 379
+sum(mydata$V4) = 7731
+KO_DCAF
+sum(mydata$V2) = 7516
+sum(mydata$V3) = 352
+sum(mydata$V4) = 7776
+KO_GFP
+sum(mydata$V2) = 7382
+sum(mydata$V3) = 401
+sum(mydata$V4) = 7660
+
+#creating a new dataframe out of these samples
+newdata <- data.frame(dataset1$V1,dataset1$V4,dataset2$V4,dataset3$V4,dataset4$V4)
+
+#setting row names as genes
+rownames(newdata) <- newdata$dataset1.V1
+newdata$dataset1.V1 <- NULL
+
+#setting column names as samples
+colnames(newdata) <- c("DCAF_A_S62_L007_R1", "GFP_A_S57_L007_R1", "KO_DCAF_A_S72_L007_R1", "KO_GFP_A_S67_L007_R1")
+
+#writing new dataframe to file
+write.table(newdata, "C:/Users/steve/Documents/readsoutpergene_sum.tab", sep="\t")  
+
+#HG38 cytoband creation
+#download from http://hgdownload.cse.ucsc.edu/goldenPath/hg38/database/cytoBand.txt.gz
+#perform the following
+cytoband <- read.delim("cytoBand.txt", header=F)
+cytoband <- data.frame(V1=gsub("chr", "", cytoband[,1]), V2=cytoband[,2], V3=cytoband[,3], V4=substring(cytoband$V4, 1, 1), stringsAsFactors=F)
+start <- do.call(rbind, lapply(split(cytoband$V2, paste0(cytoband$V1, cytoband$V4)), min))
+end <- do.call(rbind, lapply(split(cytoband$V3, paste0(cytoband$V1, cytoband$V4)), max))
+cytoband <- data.frame(V1=gsub("p", "", gsub("q", "", rownames(start))), V2=start, V3=end, V4=rownames(start), stringsAsFactors=F)
+cytoband <- cytoband [as.vector(unlist(sapply(c(1:22, "X"), function(x) which(cytoband$V1 %in% x)))), ]
+cytoband$V4[grep("q", cytoband$V4)] <- "q"
+cytoband$V4[grep("p", cytoband$V4)] <- "p"
+rownames(cytoband) <- NULL
+
+#writing cytoband to file
+write.table(cytoband, "C:/Users/steve/Documents/cytoband.tab", sep="\t")  
+
+#downloading centromere information
+curl -s "http://hgdownload.cse.ucsc.edu/goldenPath/hg38/database/cytoBand.txt.gz" | gunzip -c | grep acen > centromere.tab
+cp centromere.tab /mnt/c/Users/steve/Documents
+
+#loading centromere information
+centromere <- read.delim("centromere.tab", header=F)
+
+#creating annotation date
+annotation <- generateAnnotation(id_type="ensembl_gene_id", genes=rownames(newdata), ishg19=T, centromere, host="uswest.ensembl.org")
+
+#reading BAFExtractoutput
+loh <- readBAFExtractOutput(path="./04_BAFExtract\\", sequencing.type="bulk")
+names(loh) <- gsub(".snp", "", names(loh))
+
+#create loh.name.mapping, this is just a file to match loh.name with sample name, if different
+loh.name.mapping <- data.frame("loh.name" = c("DCAF_A_S62_L007_R1", "GFP_A_S57_L007_R1", "KO_DCAF_A_S72_L007_R1", "KO_GFP_A_S67_L007_R1"), "sample.name" = c("DCAF_A_S62_L007_R1", "GFP_A_S57_L007_R1", "KO_DCAF_A_S72_L007_R1", "KO_GFP_A_S67_L007_R1"))
+
+#making control.sample.ids, just a list of control samples
+control.sample.ids = c("DCAF_A_S62_L007_R1","GFP_A_S57_L007_R1")
+
+#there is a discrepancy between number of genes in annotation and in newdata
+#removes genes in newdata that are not present in annotation
+gene1=rownames(newdata)
+gene2=rownames(annotation)
+gene3=intersect(gene1,gene2)
+gene2=annotation$Gene
+gene3=intersect(gene1,gene2)
+newdata1=newdata[rownames(newdata) %in% gene3,]
+newdata2=newdata1[match(annotation$Gene,rownames(newdata1)),]
+
+#testing that number of genes are exactly the same in annotation and newdata2
+all.equal(rownames(newdata2),annotation$Gene)
+
+#creating casper object
+object <- CreateCasperObject(raw.data=newdata2, loh.name.mapping=loh.name.mapping, sequencing.type="bulk", 
+  cnv.scale=3, loh.scale=3, matrix.type="normalized", expr.cutoff=4.5,
+  annotation=annotation, method="iterative", loh=loh, filter="median",  
+  control.sample.ids=control.sample.ids, cytoband=cytoband, genomeVersion= "hg38")
+  
+final.objects <- runCaSpER(object, removeCentromere=T, cytoband=cytoband, method="iterative")
+
+#large-scale CNV summarization
+finalChrMat <- extractLargeScaleEvents (final.objects, thr=0.75) 
+
+#segment based CNV summarization
+gamma <- 6
+all.segments <- do.call(rbind, lapply(final.objects, function(x) x@segments))
+segment.summary <- extractSegmentSummary (final.objects)
+loss <- segment.summary$all.summary.loss
+gain <- segment.summary$all.summary.gain
+loh <- segment.summary$all.summary.loh
+loss.final <- loss[loss$count>gamma, ]
+gain.final <- gain[gain$count>gamma, ]
+loh.final <- loh[loh$count>gamma, ]
+
+#gene based CNV summarization
+   
+all.summary<- rbind(loss.final, gain.final)
+colnames(all.summary) [2:4] <- c("Chromosome", "Start",   "End")
+geno.rna <-  GRanges(seqnames = Rle(gsub("q", "", gsub("p", "", all.summary$Chromosome))), 
+    IRanges(all.summary$Start, all.summary$End))   
+ann.gr <- makeGRangesFromDataFrame(final.objects[[1]]@annotation.filt, keep.extra.columns = TRUE, seqnames.field="Chr")
+hits <- findOverlaps(geno.rna, ann.gr)
+genes <- splitByOverlap(ann.gr, geno.rna, "GeneSymbol")
+genes.ann <- lapply(genes, function(x) x[!(x=="")])
+all.genes <- unique(final.objects[[1]]@annotation.filt[,2])
+all.samples <- unique(as.character(final.objects[[1]]@segments$ID))
+rna.matrix <- gene.matrix(seg=all.summary, all.genes=all.genes, all.samples=all.samples, genes.ann=genes.ann)
+
+#generating plotHeatmap
+#only_soi = F will include control samples
+obj <- final.objects[[9]]
+plotHeatmap(object=obj, fileName="heatmap.png",cnv.scale= 3, cluster_cols = F, cluster_rows = T, show_rownames = T, only_soi = T)
+
+#plot large scale events
+plotLargeScaleEvent (object=obj, fileName="large.scale.events.png") 
 
 
 
