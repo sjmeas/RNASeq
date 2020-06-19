@@ -4,7 +4,7 @@ This repository provides scripts for a copy number variation (CNV) of RNASeq dat
 
 ## 1. Quality Control and Trimming
 
-Reads are processed by '<trim_galore>' to remove adapters and analyze quality
+Reads are processed by `<trim_galore>` to remove adapters and analyze quality
 
 ## 2. Alignment
 
