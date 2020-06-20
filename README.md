@@ -1,4 +1,4 @@
-#Copy Number Variation Analysis Pipeline
+# Copy Number Variation Analysis Pipeline
 
 This repository provides scripts for a copy number variation (CNV) of RNASeq data.
 
@@ -7,7 +7,7 @@ This repository provides scripts for a copy number variation (CNV) of RNASeq dat
 ### Terminal
 Install Homebrew  
 `xcode-select --install`  
-`ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"`
+`ruby -e "$(curl -fsSL httgit ps://raw.githubusercontent.com/Homebrew/install/master/install)"`
 
 Set up pyenv  
 `brew install pyenv`   
