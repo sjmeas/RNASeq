@@ -1,9 +1,4 @@
----
-title: "Copy Number Variation Analysis Pipeline"
-author: Steven J. Meas
-date: 20/06/2020
-output: html_document
----
+#Copy Number Variation Analysis Pipeline
 
 This repository provides scripts for a copy number variation (CNV) of RNASeq data.
 
@@ -68,20 +63,22 @@ Install devtools
 Windows users will need to download and install [Rtools](https://cran.r-project.org/bin/windows/Rtools/)
 
 Install CaSpER  
-`require(devtools)
-install_github("akdess/CaSpER")`
+```
+require(devtools)
+install_github("akdess/CaSpER")
+````
 
 ## Part Two: Download Genome Files
 
 Download hg38 genome sequence in FASTA format https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips
 
 Download hg38 gene annotation GTF file
-–
-ensGene from https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/genes/
+– ensGene from https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/genes/
 
 Download cytoband information from http://hgdownload.cse.ucsc.edu/goldenPath/hg38/database/cytoBand.txt.gz
 
-Download centromere information `curl -s "http://hgdownload.cse.ucsc.edu/goldenPath/hg38/database/cytoBand.txt.gz" | gunzip -c | grep acen > centromere.tab`
+Download centromere information   
+`curl -s "http://hgdownload.cse.ucsc.edu/goldenPath/hg38/database/cytoBand.txt.gz" | gunzip -c | grep acen > centromere.tab`
 Copy to project directory
 
 ## Part Three: Pipeline
@@ -101,3 +98,10 @@ B-Allele frequencies are computed using [BAFExtract](https://github.com/akdess/B
 ### 4. CaSpER
 
 BAF and aligned reads are used to perform [CaSPER](https://github.com/akdess/CaSPER)
+
+The output from STAR will have the following columns in the *ReadsPerGene.out.tab files:
+V1 - genes, V2 - non-stranded, V3 - positive, V4 - negative
+
+Select the column with the most reads to create the new dataframe `newdata`
+
+Please refer to [CaSpER](https://rpubs.com/akdes/578955) documentation for functions to create output graphs.
