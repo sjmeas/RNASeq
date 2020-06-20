@@ -1,4 +1,9 @@
-# Copy Number Variation Analysis Pipeline
+---
+title: "Copy Number Variation Analysis Pipeline"
+author: Steven J. Meas
+date: 20/06/2020
+output: html_document
+---
 
 This repository provides scripts for a copy number variation (CNV) of RNASeq data.
 
@@ -48,10 +53,11 @@ Download and install [RStudio](https://rstudio.com/products/rstudio/)
 
 Update BioCManager  
 
-`if (!requireNamespace("BiocManager", quietly = TRUE))'  
-    `install.packages("BiocManager")`   
-`BiocManager::install()`  
-
+```
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install()
+```
 
 Install CaSpER dependencies  
 `BiocManager::install(c('HMMcopy', 'GenomeGraphs', 'biomaRt', 'limma', 'GO.db', 'org.Hs.eg.db', 'GOstats'))`  
