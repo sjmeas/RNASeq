@@ -48,9 +48,9 @@ Download and install [RStudio](https://rstudio.com/products/rstudio/)
 
 Update BioCManager  
 
-`if (!requireNamespace("BiocManager", quietly = TRUE))
-    install.packages("BiocManager")    
-BiocManager::install()`
+`if (!requireNamespace("BiocManager", quietly = TRUE))'  
+    `install.packages("BiocManager")`   
+`BiocManager::install()`  
 
 
 Install CaSpER dependencies  
