@@ -71,6 +71,7 @@ install_github("akdess/CaSpER")
 ## Part Two: Download Genome Files
 
 Download hg38 genome sequence in FASTA format https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips
+`wget https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.fa.gz`
 
 Download hg38 gene annotation GTF file
 – ensGene from https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/genes/
