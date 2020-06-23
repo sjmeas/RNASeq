@@ -1,6 +1,6 @@
 # Copy Number Variation Analysis Pipeline
 
-This repository provides scripts for a copy number variation (CNV) of RNASeq data.
+This repository provides scripts for copy number variation (CNV) analysis of RNASeq data.
 
 ## Part One: Installation of Dependencies
 
@@ -73,8 +73,8 @@ install_github("akdess/CaSpER")
 Download hg38 genome sequence in FASTA format https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips
 `wget https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.fa.gz`
 
-Download hg38 gene annotation GTF file
-– ensGene from https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/genes/
+Download hg38 gene annotation GTF file from https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/genes/
+`wget https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/genes/hg38.ensGene.gtf.gz`
 
 Download cytoband information from http://hgdownload.cse.ucsc.edu/goldenPath/hg38/database/cytoBand.txt.gz
 
