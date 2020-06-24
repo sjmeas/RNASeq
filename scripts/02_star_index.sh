@@ -7,4 +7,4 @@ GENOMETYPE=hg38.fa
 #Number of logical processors - 1
 CORES=7
 
-STAR --runThreadN $CORES --runMode genomeGenerate --genomeDir $GENOMEDIR  --genomeFastaFiles $GENOMEDIR/$GENOMETYPE --sjdbGTFfile $FGENOMEDIR/hg38.ensGene.gtf
+STAR --runThreadN $CORES --runMode genomeGenerate --genomeDir $GENOMEDIR  --genomeFastaFiles $GENOMEDIR/$GENOMETYPE --sjdbGTFfile $GENOMEDIR/hg38.ensGene.gtf

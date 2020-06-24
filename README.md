@@ -71,10 +71,12 @@ install_github("akdess/CaSpER")
 ## Part Two: Download Genome Files
 
 Download hg38 genome sequence in FASTA format https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips
-`wget https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.fa.gz`
+`wget https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.fa.gz`  
+`gunzip hg38.fa.gz`
 
 Download hg38 gene annotation GTF file from https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/genes/
-`wget https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/genes/hg38.ensGene.gtf.gz`
+`wget https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/genes/hg38.ensGene.gtf.gz`  
+`gunzip hg38.ensGene.gtf.gz`
 
 Download cytoband information from http://hgdownload.cse.ucsc.edu/goldenPath/hg38/database/cytoBand.txt.gz
 
