@@ -1,6 +1,6 @@
 # Copy Number Variation Analysis Pipeline
 
-This repository provides scripts for copy number variation (CNV) analysis of RNASeq data.
+This repository provides scripts for copy number variation (CNV) analysis of RNASeq data. Currently, works with human genome and single-end bulk RNA-seq data.
 
 ## Part One: Installation of Dependencies
 
@@ -17,6 +17,8 @@ Set up pyenv
 
 Install cutadapt  
 `pip install cutadapt`  
+
+Download [fetchChromSizes](https://hgdownload.cse.ucsc.edu/admin/exe/linux.x86_64/fetchChromSizes), `wget https://hgdownload.cse.ucsc.edu/admin/exe/linux.x86_64/fetchChromSizes; chmod +x fetchChromSizes`
 
 Download [trim_galore](https://github.com/FelixKrueger/TrimGalore/releases)  
 `chmod +x trim_galore`  
@@ -70,27 +72,39 @@ install_github("akdess/CaSpER")
 
 ## Part Two: Download Genome Files
 
-Download hg38 genome sequence in FASTA format https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips
-`wget https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.fa.gz`  
-`gunzip hg38.fa.gz`
+The pipeline assumes the files are downloaded in the project folder. 
 
-Download hg38 gene annotation GTF file from https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/genes/
-`wget https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/genes/hg38.ensGene.gtf.gz`  
-`gunzip hg38.ensGene.gtf.gz`
+Download hg38 genome sequence in FASTA format 
 
-Download cytoband information from http://hgdownload.cse.ucsc.edu/goldenPath/hg38/database/cytoBand.txt.gz
+```
+wget https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.fa.gz
+gunzip hg38.fa.gz
+```
+
+Download hg38 gene annotation GTF file from 
+
+```
+wget https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/genes/hg38.ensGene.gtf.gz
+gunzip hg38.ensGene.gtf.gz
+```
 
 Download centromere information   
-`curl -s "http://hgdownload.cse.ucsc.edu/goldenPath/hg38/database/cytoBand.txt.gz" | gunzip -c | grep acen > centromere.tab`
-Copy to project directory
+
+```
+curl -s "http://hgdownload.cse.ucsc.edu/goldenPath/hg38/database/cytoBand.txt.gz" | gunzip -c | grep acen > centromere.tab
+```
 
 ## Part Three: Pipeline
 
 ### 1. Quality Control and Trimming
 
-Reads are processed by `<trim_galore>` to remove adapters and analyze quality
+Run [scripts/00_genome_sort.sh](scripts/00_genome_sort.sh) to prepare the genome file with chromosomes sorted in the right order
+
+Run [scripts/01_trim_galore.sh](scripts/01_trim_galore.sh) to remove adapters and analyze quality of RNA-seq reads
 
 ### 2. Alignment
+
+Index the genome using [scripts/02_star_index.sh](scripts/02_star_index.sh)
 
 Reads are aligned to UCSC reference genome using [STAR](https://github.com/alexdobin/STAR)
 
