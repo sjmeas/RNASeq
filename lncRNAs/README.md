@@ -14,8 +14,14 @@ Map mouse lncRNA regions to the homologous regions in the human genome, understa
     - Download FASTA mouse genome, http://hgdownload.cse.ucsc.edu/goldenpath/mm10/bigZips/, mm10.fa.gz 
     - Install BedTools using homebrew, use https://bedtools.readthedocs.io/en/latest/content/tools/getfasta.html to extract genomic sequences of mouse lncRNAs
 - Outcome 3: Map extracted genomic sequences to hg38/GRcH38 human genome, get genomic coordinates of top matches in BED format
-    - The critical part - need to scrutinize each setting of the STAR aligner to select the most appropriate. Mostly for me, but make sure to understand why and correct, if needed.
-    - Ideally, we want a perfect match between the mouse sequence and the human sequence. It will rarely be the case, as there will be point mismatches, insertions, or deletions. Thus, we need to make educated guesses how much wiggle room to allow for the alignment.
+    - Install `brew install bowtie2`. Read about bowtie2 at http://bowtie-bio.sourceforge.net/bowtie2/manual.shtml
+```
+# Build index
+bowtie-build2 <path to index>/hg38.fa <path to index> 
+# Alignment
+bowtie2 -x <path to index>/hg38 -U <fasta file> -S <output file.sam> -p <# of CPUs> --very-fast-local -k 3 --met-file <metrics_file.txt>
+```
+	- This command will perform alignment allowing mismatches, and report top three (-k 3) best matching for each input read
     - Each mouse read will likely map to multiple regions in the human genome. These regions can be prioritized by the alignment score. We may want to select the top best match, or top two.
 - Outcome 4: Annotate human genomic regions associated with mouse lncRNAs
     - Having a BED file of coordinates, use `ChIPpeakAnno` to annotate them with nearby or overlapping human transcripts, https://www.bioconductor.org/packages/release/bioc/vignettes/ChIPpeakAnno/inst/doc/pipeline.html
