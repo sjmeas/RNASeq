@@ -88,9 +88,11 @@ wget https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/genes/hg38.ensGene.
 gunzip hg38.ensGene.gtf.gz
 ```
 
-Download centromere information   
+Download cytoband and centromere information   
 
 ```
+wget http://hgdownload.cse.ucsc.edu/goldenPath/hg38/database/cytoBand.txt.gz
+gunzip cytoBand.txt.gz
 curl -s "http://hgdownload.cse.ucsc.edu/goldenPath/hg38/database/cytoBand.txt.gz" | gunzip -c | grep acen > centromere.tab
 ```
 
