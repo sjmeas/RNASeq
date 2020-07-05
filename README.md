@@ -88,9 +88,11 @@ wget https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/genes/hg38.ensGene.
 gunzip hg38.ensGene.gtf.gz
 ```
 
-Download centromere information   
+Download cytoband and centromere information   
 
 ```
+wget http://hgdownload.cse.ucsc.edu/goldenPath/hg38/database/cytoBand.txt.gz
+gunzip cytoBand.txt.gz
 curl -s "http://hgdownload.cse.ucsc.edu/goldenPath/hg38/database/cytoBand.txt.gz" | gunzip -c | grep acen > centromere.tab
 ```
 
@@ -106,19 +108,19 @@ Run [scripts/01_trim_galore.sh](scripts/01_trim_galore.sh) to remove adapters an
 
 Index the genome using [scripts/02_star_index.sh](scripts/02_star_index.sh)
 
-Reads are aligned to UCSC reference genome using [STAR](https://github.com/alexdobin/STAR)
+Reads are aligned to UCSC reference genome using [scripts/03_star.sh](scripts/03_star.sh)
 
 ### 3. B-Allele Frequency Calculation
 
-B-Allele frequencies are computed using [BAFExtract](https://github.com/akdess/BAFEXtract)
+B-Allele frequencies are computed using [BAFExtract](https://github.com/akdess/BAFEXtract), [[scripts/04_BAFExtract.sh]([scripts/04_BAFExtract.sh)
 
 ### 4. CaSpER
 
-BAF and aligned reads are used to perform [CaSPER](https://github.com/akdess/CaSPER)
+BAF and aligned reads are used to perform [CaSPER](https://github.com/akdess/CaSPER), [[scripts/05_CaSpER.Rmd]([scripts/05_CaSpER.Rmd)
 
 The output from STAR will have the following columns in the *ReadsPerGene.out.tab files:
-V1 - genes, V2 - non-stranded, V3 - positive, V4 - negative
+V1 - genes, V2 - non-stranded, V3 - forward, V4 - reverse stranded alignment
 
-Select the column with the most reads to create the new dataframe `newdata`
+Select the column with the most reads to create the new dataframe `counts`
 
 Please refer to [CaSpER](https://rpubs.com/akdes/578955) documentation for functions to create output graphs.

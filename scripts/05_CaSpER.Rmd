@@ -1,0 +1,306 @@
+---
+title: "CaSpER pipeline"
+# author: "Mikhail Dozmorov, Steven Meas"
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    toc: no
+  html_document:
+    theme: cerulean
+    toc: yes
+---
+
+```{r setup, echo=FALSE, message=FALSE, warning=FALSE}
+# Set up the environment
+library(knitr)
+opts_chunk$set(cache.path='cache/', fig.path='img/', cache=F, tidy=T, fig.keep='high', echo=F, dpi=100, warnings=F, message=F, comment=NA, warning=F, results='as.is', fig.width = 10, fig.height = 6) #out.width=700, 
+library(pander)
+panderOptions('table.split.table', Inf)
+set.seed(1)
+library(dplyr)
+options(stringsAsFactors = FALSE)
+```
+
+# Settings
+
+```{r libraries}
+library(CaSpER) # devtools::install_github("akdess/CaSpER")
+library(GenomicRanges)
+library(openxlsx)
+library(writexl)
+library(annotables) # devtools::install_github("stephenturner/annotables") Annotations of Ensembl IDs
+```
+
+```{r settings}
+data_dir       <- "/Users/mdozmorov/Documents/Data/VCU_work/Litovchik/2019-05.RNA-seq/" # Working directory
+fileNameOut   <- file.path(data_dir, "results/CaSpER.xlsx")  # File to save TPM values
+```
+
+```{r}
+# Mutually exclusive selectors, which analysis should be run. Only one may be TRUE
+human_analysis <- TRUE
+mouse_analysis <- FALSE
+
+# Prepate gene annotations, remove non-canonical chromosome names
+if (human_analysis) {
+  library(org.Hs.eg.db)
+  OrgDb = "org.Hs.eg.db"; species = "hsa"
+  gene_annotations <- grch38[ !(grepl("_", grch38$chr) | grepl("GL", grch38$chr)), c("ensgene", "symbol", "biotype", "description")]
+  gene_annotations <- gene_annotations[ !duplicated(gene_annotations) & !is.na(gene_annotations$symbol) & gene_annotations$description != "", ]
+  KEGG <- "KEGG_2019_Human"
+  # Gene length for TPM calculations
+  gene_length <- data.frame(Geneid = grch38$ensgene, Length = grch38$end - grch38$start)
+}
+if (mouse_analysis) {
+  library(org.Mm.eg.db)
+  OrgDb = "org.Mm.eg.db"; species = "mmu"
+  gene_annotations <- grcm38[ !(grepl("_", grcm38$chr) | grepl("GL", grcm38$chr)), c("ensgene", "symbol", "biotype", "description")]
+  gene_annotations <- gene_annotations[ !duplicated(gene_annotations) & !is.na(gene_annotations$symbol) & gene_annotations$description != "", ]
+  KEGG <- "KEGG_2019_Mouse"
+  # Gene length for TPM calculations
+  gene_length <- data.frame(Geneid = grcm38$ensgene, Length = grcm38$end - grcm38$start)
+}
+# All genes for background
+all.symbol <- unique(gene_annotations$symbol) 
+```
+
+# CNV analysis
+
+[CaSpER R package](https://github.com/akdess/CaSpER)
+
+Tutorial: [CaSpER: Identification, visualization and integrative analysis of CNV events in multiscale resolution using single-cell or bulk RNA sequencing data](https://rpubs.com/akdes/578955)
+
+## Load data (STAR)
+
+```{r multiFCfile, eval=TRUE, cache=TRUE}
+# Strandedness column selection
+# https://chipster.csc.fi/manual/library-type-summary.html 
+column_star <- 3 
+counts   <- cbind() # Count matrix
+count_colnames <- c()     # Count matrix column names
+files_counts <- list.files(path = paste0(data_dir, "02_aligned_tab/"), pattern = "*.tab.gz")
+for (f in files_counts) {
+  count_data <- read.table(paste0(data_dir, "02_aligned_tab/", f), sep = "\t", header = FALSE)
+  # sapply(count_data[5:row(count_data), 2:ncol(count_data)], sum) # Check strandedness, which column has the maximum number, change column_star above
+  counts <- cbind(counts, count_data[, column_star]) # Select the right strandedness column
+  count_colnames <- c(count_colnames, sub("_trimmedReadsPerGene.out.tab.gz", "", f))
+}
+# Filter out low expressed genes
+# Should be more than 100% of non-zero values
+# ff <- genefilter::pOverA(p = 1.0, A = 0, na.rm = TRUE)
+# index <- apply(counts, 1, ff) # Index of rows having non-zero counts
+index <- 5:nrow(counts) # Skip first four columns
+# Add columns
+colnames(counts) <- count_colnames
+counts <- data.frame(Geneid = count_data[index, 1], counts[index, order(colnames(counts))])
+# Human Ensembl IDs are in the form "ENSG00000225630.1". We need to remove the last part with dot
+if (human_analysis) {
+  counts$Geneid <- sapply(counts$Geneid, function(x) strsplit(x, ".", fixed = TRUE)[[1]][1])
+}
+```
+
+# Cytoband and centromere information
+
+Download cytoband and centromere information. Place in the `r data_dir` folder.
+
+```
+wget http://hgdownload.cse.ucsc.edu/goldenPath/hg38/database/cytoBand.txt.gz
+gunzip cytoBand.txt.gz
+curl -s "http://hgdownload.cse.ucsc.edu/goldenPath/hg38/database/cytoBand.txt.gz" | gunzip -c | grep acen > centromere.tab
+```
+
+```{r}
+# HG38 cytoband creation
+cytoband <- read.delim(paste0(data_dir, "cytoBand.txt"), header=F)
+cytoband <- data.frame(V1=gsub("chr", "", cytoband[,1]), V2=cytoband[,2], V3=cytoband[,3], V4=substring(cytoband$V4, 1, 1), stringsAsFactors=F)
+start <- do.call(rbind, lapply(split(cytoband$V2, paste0(cytoband$V1, cytoband$V4)), min))
+end <- do.call(rbind, lapply(split(cytoband$V3, paste0(cytoband$V1, cytoband$V4)), max))
+cytoband <- data.frame(V1=gsub("p", "", gsub("q", "", rownames(start))), V2=start, V3=end, V4=rownames(start), stringsAsFactors=F)
+cytoband <- cytoband [as.vector(unlist(sapply(c(1:22, "X"), function(x) which(cytoband$V1 %in% x)))), ]
+cytoband$V4[grep("q", cytoband$V4)] <- "q"
+cytoband$V4[grep("p", cytoband$V4)] <- "p"
+rownames(cytoband) <- NULL
+write.table(cytoband, paste0(data_dir, "cytoband.tab"), sep="\t")
+```
+
+```{r}
+#loading centromere information
+centromere <- read.delim(paste0(data_dir, "centromere.tab"), header=F)
+```
+
+```{r}
+#creating annotation date
+annotation <- generateAnnotation(id_type = "ensembl_gene_id", genes = counts$Geneid, ishg19 = FALSE, centromere, host = "uswest.ensembl.org")
+# annotation[1:5, ]
+```
+
+# BAFExtract
+
+```{r}
+#reading BAFExtractoutput
+loh <- readBAFExtractOutput(path = paste0(data_dir, "./03_BAFExtract/"), sequencing.type = "bulk")
+names(loh) <- gsub("_trimmedAligned.out.bam.snp", "", names(loh))
+all.equal(names(loh), colnames(counts))
+```
+
+# Prepare data
+
+```{r}
+#comparing annotation data to counts, making them equal
+# Merge by common EnsemblIDs
+newdata1 <- inner_join(counts, annotation, by = c("Geneid" = "Gene")) 
+# Select data only
+newdata <- newdata1[, !(colnames(newdata1) %in% c("Geneid", "GeneSymbol", "Chr", "start", "end", "band", "cytoband", "isCentromer", "Position", "new_positions"))]
+rownames(newdata) <- newdata1$Geneid
+# Select annotations only
+newannotation <- newdata1[, (colnames(newdata1) %in% c("Geneid", "GeneSymbol", "Chr", "start", "end", "band", "cytoband", "isCentromer", "Position", "new_positions"))]
+colnames(newannotation)[1] <- "Gene" # Match first column name to the original
+```
+
+## Subset
+
+```{r}
+colnames(newdata) # All samples
+# Selected samples
+selected_samples <- c("DCAF_A_S62", "DCAF_B_S63", "DCAF_C_S64", "DCAF_D_S65", "DCAF_E_S66", "GFP_A_S57", "GFP_B_S58", "GFP_C_S59", "GFP_D_S60", "GFP_E_S61") # Two groups
+selected_samples <- colnames(newdata) # All samples
+# Subsetting
+selected_data <- newdata[, selected_samples]
+selected_loh <- loh[names(loh) %in% selected_samples]
+all.equal(colnames(selected_data), names(selected_loh)) # Should be TRUE
+# Create mapping between sample names and the corresponding BAF signal names
+loh.name.mapping <- data.frame("loh.name" = names(selected_loh), 
+                               "sample.name" = colnames(selected_data))
+
+#making control.sample.ids, just a list of control samples
+control.sample.ids = c("GFP_A_S57", "GFP_B_S58", "GFP_C_S59", "GFP_D_S60", "GFP_E_S61")
+```
+
+# Run CaSpER
+
+```{r}
+#creating casper object
+object <- CreateCasperObject(raw.data = selected_data, 
+                             annotation=annotation, 
+                             control.sample.ids = control.sample.ids, 
+                             cytoband = cytoband, 
+                             loh.name.mapping = loh.name.mapping, 
+                             cnv.scale = 3, 
+                             loh.scale = 3, 
+                             method = "iterative", 
+                             loh = selected_loh, 
+                             project = "DCAF_vs_GFP",
+                             sequencing.type = "bulk", 
+                             expr.cutoff = 4.5,
+                             display.progress = TRUE,
+                             log.transformed = TRUE,
+                             centered.trheshold = 3,
+                             window.length = 50,
+                             length.iterations = 50,
+                             vis.bound = 2,
+                             noise.thr = 0.3,
+                             genomeVersion= "hg38",
+                             matrix.type = "raw")
+
+final.objects <- runCaSpER(object, removeCentromere = T, cytoband = object@cytoband, method = "iterative")
+```
+
+## Large-Scale CNV Summarization
+
+We assign a large-scale CNV call to every chromosome arm for each of the N×M pairwise scale comparisons. Next, for each chromosome arm, we ask whether the large-scale CNV call is consistent among at least y of the N×M large-scale CNV calls. N denotes the index for the highest smoothing scale for expression signal. M denotes the index for the highest smoothing scale for baf signal. thr represents minimum percentage, 75% (at least 7 out of 9 scales), of consistent CNV calls (Out of N×M comparisons of expression scales and BAF scales) while assigning a final CNV (amp/del/neutral) call to a segment/gene/chromosome arm.
+
+```{r}
+finalChrMat <- extractLargeScaleEvents (final.objects, thr=0.75) %>% t
+```
+
+## Segment based CNV Summarization
+
+The segments-based summarization aims at generating a final set of CNV calls for a final set of segments that are computed by comparison of scales. We first compare the segments from different expression scales and generate the consistent set of segments. For each segment in the final set, if there are more than y (default=6) consistent CNV calls among N×M CNV calls, we assign the consistent CNV call to segment. When there is no consistency among the calls, we assign a neutral CNV state to segment.
+
+```{r}
+#segment based CNV summarization
+gamma <- 6
+all.segments <- do.call(rbind, lapply(final.objects, function(x) x@segments))
+segment.summary <- extractSegmentSummary (final.objects)
+loss <- segment.summary$all.summary.loss
+gain <- segment.summary$all.summary.gain
+loh <- segment.summary$all.summary.loh
+loss.final <- loss[loss$count>gamma, ]
+gain.final <- gain[gain$count>gamma, ]
+loh.final <- loh[loh$count>gamma, ]
+```
+
+## Gene based CNV Summarization
+
+Similar to the large-scale summarization, we generate a matrix where rows are the samples (cells) and columns are the genes. The matrix entry of 0 corresponds to no alteration, 1 corresponds to amplification and -1 corresponds to deletion. If an alteration is consistent in more than y scale comparisons (out of N×M comparisons), we report that alteration event for that sample.
+
+```{r}
+all.summary<- rbind(loss.final, gain.final)
+colnames(all.summary) [2:4] <- c("Chromosome", "Start",   "End")
+geno.rna <-  GRanges(seqnames = Rle(gsub("q", "", gsub("p", "", all.summary$Chromosome))), 
+    IRanges(all.summary$Start, all.summary$End))   
+ann.gr <- makeGRangesFromDataFrame(final.objects[[1]]@annotation.filt, keep.extra.columns = TRUE, seqnames.field="Chr")
+hits <- findOverlaps(geno.rna, ann.gr)
+genes <- splitByOverlap(ann.gr, geno.rna, "GeneSymbol")
+genes.ann <- lapply(genes, function(x) x[!(x=="")])
+all.genes <- unique(final.objects[[1]]@annotation.filt[,2])
+all.samples <- unique(as.character(final.objects[[1]]@segments$ID))
+rna.matrix <- gene.matrix(seg=all.summary, all.genes=all.genes, all.samples=all.samples, genes.ann=genes.ann)
+```
+
+# Save 
+
+```{r}
+x <- list(data.frame(seqnames = rownames(finalChrMat), finalChrMat),
+          loss.final, gain.final, loh.final,
+          data.frame(Gene = rownames(rna.matrix), rna.matrix))
+names(x) <- c("Summary", "Loss", "Gain", "LOH", "Gene")
+write_xlsx(x, fileNameOut)
+```
+
+
+# Visualization
+
+## plotHeatmap
+
+Visualization of the genomewide gene expression signal plot at different smoothing scales CaSpER outputs the expression signal at different scales. In these plots, each row is a sample and the columns are the chromosomes. These can be useful for comparison of outputs from different scales using the panoramic inspection of the expression signal.
+
+```{r}
+obj <- final.objects[["3_vs_3"]]
+plotHeatmap(object = obj, fileName = paste0(data_dir, "heatmap.png"), cnv.scale = 3, cluster_cols = F, cluster_rows = T, show_rownames = T, only_soi = T)
+```
+
+## plotLargeScaleEvent
+
+Visualization of the large-scale CNV events among all the samples/cells. Large scale event summarization is useful for summarizing the detected large-scale CNV events (deletions and amplifications) over multiple samples. This plot summarizes the large scale CNVs and may reveal the patterns that may otherwise be missed when data is visualized at smaller scales.
+
+```{r}
+plotLargeScaleEvent(object=obj, fileName = paste0(data_dir, "large.scale.events.png") ) 
+## plot large scale events using event summary matrix 1: amplification, -1:deletion, 0: neutral
+plotLargeScaleEvent2 (finalChrMat, fileName = paste0(data_dir, "large.scale.events.summarized.pdf") )
+```
+
+## plotGEAndGT
+
+Plot large scale events called from genotyping and RNA-Seq (can be used only with small sample size)
+
+```{r eval = FALSE}
+plotGEAndGT (chrMat=finalChrMat, genoMat=genoMat, fileName = paste0(data_dir, "RNASeqAndGT.png") )
+```
+
+## plotBAFAllSamples
+
+Visualization of BAF shift signal for all samples together. The inspection of BAF shift signal is useful especially when compared to the expression signal to analyze the CNV and LOH events. The BAF shift plots show the BAF shift signal such that each row is the genomewide BAF shift signal profile.
+
+```{r}
+plotBAFAllSamples (loh = obj@loh.median.filtered.data,  fileName = paste0(data_dir, "LOHAllSamples.png")) 
+```
+
+# plotBAFOneSample
+
+plotBAFOneSample: Visualization of BAF shift signal in different scales for one sample. This option plots the BAF shift signal for one sample at different scales. Similar to the multiscale smoothing of expression signal, this information enables panoramic assessment and identification of CNV and LOH events.
+
+```{r}
+plotBAFOneSample (object, fileName = paste0(data_dir, "LOHPlotsAllScales.pdf")) 
+```
+
