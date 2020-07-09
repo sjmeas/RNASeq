@@ -169,6 +169,7 @@ analysis <- data.frame()
 for (i in 1:length(data$genes)){
   var <- data$genes[i]
   index <- match(var,names(annotated_list))
+  symbol <- data$symbol[i]
   #only genes that are present in annotated_list are processed
   if (!is.na(index)){
     annoData_df <- annotated_list[[index]]
@@ -182,6 +183,6 @@ for (i in 1:length(data$genes)){
       add_column(identity  = annoData_df[,"identity"], .after = "score") 
     #sort columns
     analysis <- analysis[with(analysis,order(-score,identity,distance)),]
-    write.csv(analysis, file = paste0("./compiled_results/",var,".csv"))
+    write.csv(analysis, file = paste0("./compiled_results/","0",i,"_",var,"_",symbol,".csv"))
   }
 }
