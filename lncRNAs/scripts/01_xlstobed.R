@@ -2,9 +2,14 @@ library(annotables)
 library(dplyr)
 library(tibble)
 
+# Settings
+data_dir <- "D:/Users/steve/Documents/Projects/RNASeq/lncRNAs/data" # Steve
+data_dir <- "/Users/mdozmorov/Documents/Work/GitHub/RNA-seq/misc/RNASeq/lncRNAs/data" # Mikhail
+fileNameIn1 <- file.path(data_dir, "Analysis4_up.csv")
+fileNameOut1 <- file.path(data_dir, "sorted.bed")
+  
 #reading file
-data <- read.csv("D:/Users/steve/Documents/Projects/RNASeq/lncRNAs/data/Analysis4_up.csv")
-
+data <- read.csv(fileNameIn1)
 
 #create function to detect genes using annotables and create BED output
 sort_data <- function(data){
@@ -26,4 +31,4 @@ sort_data <- function(data){
 
 #making subset
 newdata <- sort_data(data=data)
-write.table(newdata, "sorted.bed", row.names=FALSE,sep="\t", quote = FALSE)
+write.table(newdata, fileNameOut1, row.names = FALSE, sep = "\t", quote = FALSE)

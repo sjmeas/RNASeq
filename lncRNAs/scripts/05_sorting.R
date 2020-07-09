@@ -1,14 +1,25 @@
+# Settings
+data_dir <- "D:/Users/steve/Documents/Projects/RNASeq/lncRNAs/data" # Steve
+data_dir <- "/Users/mdozmorov/Documents/Work/GitHub/RNA-seq/misc/RNASeq/lncRNAs/data" # Mikhail
+fileNameIn1 <- file.path(data_dir, "Analysis4_up.csv")
+fileNameIn2 <- file.path(data_dir, "blat_results.psl")
+fileNameIn3 <- file.path(data_dir, "blat_results_scored")
+fileNameIn4 <- file.path(data_dir, "sorted.bed")
+
+
 #read data
-data <- read.table("blat_results_scored")
-unscored <- read.table("blat_results.psl", skip = 5, sep = "\t")
+data <- read.table(fileNameIn3)
+unscored <- read.table(fileNameIn2, skip = 5, sep = "\t")
+newdata <- read.table(fileNameIn4, sep = "\t")
+colnames(newdata) <- c("chrom", "chromStart", "chromEnd", "name", "score", "strand")
 
 #add unique mm10 query identifier to each match
 data$V7 <- unscored$V10
 
 #add additional columns to analysis summary
-analysis <- <- read.csv("D:/Users/steve/Documents/Projects/RNASeq/lncRNAs/data/Analysis4_up.csv")
+analysis <- read.csv(fileNameIn1)
 names <- c("mm10_chr", "mm10_start", "mm10_end", "mm10_strand", "hg38_chr", "hg38_start", "hg38_end", "hg38_strand", "SCORE", "IDENTITY", "Upstream", "Downstream", "Overlap")
-analysis[,names] <- NA
+analysis[, names] <- NA
 
 
 #create list of identifiers from original data
