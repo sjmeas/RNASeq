@@ -6,21 +6,15 @@ fileNameIn2 <- file.path(data_dir, "blat_results.psl")
 fileNameIn3 <- file.path(data_dir, "blat_results_scored")
 fileNameIn4 <- file.path(data_dir, "sorted.bed")
 
-
 #read data
-data <- read.table(fileNameIn3)
-unscored <- read.table(fileNameIn2, skip = 5, sep = "\t")
-newdata <- read.table(fileNameIn4, sep = "\t")
-colnames(newdata) <- c("chrom", "chromStart", "chromEnd", "name", "score", "strand")
+scored <- read.table("blat_results_scored")
+unscored <- read.table("blat_results.psl", skip = 5, sep = "\t")
+data <- read.csv("D:/Users/steve/Documents/Projects/RNASeq/lncRNAs/data/Analysis4_up.csv")
+newdata <- read.table("sorted.bed", sep = "\t", header = T)
 
 #add unique mm10 query identifier to each match
-data$V7 <- unscored$V10
-
-#add additional columns to analysis summary
-analysis <- read.csv(fileNameIn1)
-names <- c("mm10_chr", "mm10_start", "mm10_end", "mm10_strand", "hg38_chr", "hg38_start", "hg38_end", "hg38_strand", "SCORE", "IDENTITY", "Upstream", "Downstream", "Overlap")
-analysis[, names] <- NA
-
+newscored <- scored
+newscored$V7 <- unscored$V10
 
 #create list of identifiers from original data
 chrom.list <- list()
@@ -30,22 +24,24 @@ for (i in 1:dim(newdata)[1]) {
   chrom.list[[i]] <- identifier
 }
 
+newdata$V7 <- chrom.list
+
 #match identifiers in sorted data and original data, add gene name to sorted data
 for (i in 1:dim(newscored)[1]) {
   index <- match(newscored$V7[i], newdata$V7)
-  newscored$V8[i] <- newdata$genes[index]
+  newscored$V8[i] <- data$genes[index]
 }
 
 #create list of dataframes containing each individual original mouse gene
 all_names <- list()
 
-for (i in 1:dim(newdata)[1]) {
-  indexes <- which(newscored$V8 %in% newdata$genes[i])
+for (i in 1:dim(data)[1]) {
+  indexes <- which(newscored$V8 %in% data$genes[i])
   data.by.gene <- newscored[indexes,]
   all_names <- c(all_names,list(data.by.gene))
 }
 
-names(all_names) <- newdata$genes
+names(all_names) <- data$genes
 
 #make unique identifier for unscored
 newunscored <- unscored
@@ -55,8 +51,8 @@ for (i in 1:dim(unscored)[1]) {
 }
 
 #make unique identifier for scored data to match unscored
-for (i in 1:dim(newdata)[1]) {
-  var <- newdata$genes[i]
+for (i in 1:dim(data)[1]) {
+  var <- data$genes[i]
   if (dim(all_names[[var]])[1] > 0){
     for (k in 1:dim(all_names[[var]])[1]) {
       all_names[[var]]$V9[k] <- paste0(all_names[[var]][["V1"]][k], all_names[[var]][["V2"]][k], all_names[[var]][["V3"]][k]) 
@@ -72,6 +68,9 @@ for (i in 1:dim(newdata)[1]) {
 #create bed format from blat_results_scored for ChIPpeakAnno
 library(ChIPpeakAnno)
 library(dplyr)
+library(annotables)
+library(tibble)
+
 #create directory for results
 dir.create("annoData_results")
 
