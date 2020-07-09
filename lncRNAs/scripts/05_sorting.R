@@ -7,10 +7,12 @@ fileNameIn3 <- file.path(data_dir, "blat_results_scored")
 fileNameIn4 <- file.path(data_dir, "sorted.bed")
 
 #read data
-scored <- read.table("blat_results_scored")
-unscored <- read.table("blat_results.psl", skip = 5, sep = "\t")
-data <- read.csv("D:/Users/steve/Documents/Projects/RNASeq/lncRNAs/data/Analysis4_up.csv")
-newdata <- read.table("sorted.bed", sep = "\t", header = T)
+scored <- read.table(fileNameIn3)
+unscored <- read.table(fileNameIn2, skip = 5, sep = "\t")
+# data <- read.csv("D:/Users/steve/Documents/Projects/RNASeq/lncRNAs/data/Analysis4_up.csv")
+data <- read.csv(fileNameIn1)
+newdata <- read.table(fileNameIn4, sep = "\t", header = F)
+colnames(newdata) <- c("chrom",	"chromStart",	"chromEnd",	"name",	"score",	"strand")
 
 #add unique mm10 query identifier to each match
 newscored <- scored
