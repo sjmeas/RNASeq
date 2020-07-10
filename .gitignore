@@ -5,3 +5,9 @@
 RNASeq.Rproj
 scripts_old
 README.html
+lncRNAs/genome_dir
+lncRNAs/data
+cache
+*.pdf
+sorted.bed
+

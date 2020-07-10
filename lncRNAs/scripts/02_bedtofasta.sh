@@ -12,10 +12,10 @@ FILEIN=$DIROUT/sorted.bed
 # Output file
 FILEOUT=$DIROUT/results.fasta
 
-# Download and unzip the sour genome
-wget http://hgdownload.cse.ucsc.edu/goldenpath/mm10/bigZips/mm10.fa.gz
-gunzip mm10.fa.gz
-mv mm10.fa $genome_dir
+# Download and unzip the source genome (one time)
+# wget http://hgdownload.cse.ucsc.edu/goldenpath/mm10/bigZips/mm10.fa.gz
+# gunzip mm10.fa.gz
+# mv mm10.fa $genome_dir
 
 #need to convert sorted.bed to UNIX format (https://groups.google.com/g/bedtools-discuss/c/Uzs1y5H70EY)
 dos2unix $FILEIN 

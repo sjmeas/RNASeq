@@ -3,9 +3,9 @@ library(dplyr)
 library(tibble)
 
 # Settings
-data_dir <- "D:/Users/steve/Documents/Projects/RNASeq/lncRNAs/data" # Steve
+# data_dir <- "D:/Users/steve/Documents/Projects/RNASeq/lncRNAs/data" # Steve
 data_dir <- "/Users/mdozmorov/Documents/Work/GitHub/RNA-seq/misc/RNASeq/lncRNAs/data" # Mikhail
-fileNameIn1 <- file.path(data_dir, "Analysis4_up.csv")
+fileNameIn1 <- file.path(data_dir, "Analysis4_dn.csv")
 fileNameOut1 <- file.path(data_dir, "sorted.bed")
   
 #reading file
@@ -15,7 +15,7 @@ data <- read.csv(fileNameIn1)
 sort_data <- function(data){
 	data %>% 
 	inner_join(grcm38, by = c("genes" = "ensgene")) %>% 
-	select (chr, start, end, strand) %>%
+	dplyr::select (chr, start, end, strand) %>%
 	#changing strand variable from +1/-1 to +/-
 	mutate(strand = replace(strand, strand == "1", "+")) %>%
     mutate(strand = replace(strand, strand == "-1", "-")) %>%

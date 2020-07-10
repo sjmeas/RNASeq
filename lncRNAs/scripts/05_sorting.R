@@ -1,14 +1,19 @@
 # Settings
-data_dir <- "D:/Users/steve/Documents/Projects/RNASeq/lncRNAs/data" # Steve
+# data_dir <- "D:/Users/steve/Documents/Projects/RNASeq/lncRNAs/data" # Steve
 data_dir <- "/Users/mdozmorov/Documents/Work/GitHub/RNA-seq/misc/RNASeq/lncRNAs/data" # Mikhail
-fileNameIn1 <- file.path(data_dir, "Analysis4_up.csv")
+fileNameIn1 <- file.path(data_dir, "Analysis4_dn.csv")
 fileNameIn2 <- file.path(data_dir, "blat_results.psl")
 fileNameIn3 <- file.path(data_dir, "blat_results_scored")
 fileNameIn4 <- file.path(data_dir, "sorted.bed")
+dirOut1 <- file.path(data_dir, "Analysis4_dn")
 
-#read data
+#read blat data
 scored <- read.table(fileNameIn3)
 unscored <- read.table(fileNameIn2, skip = 5, sep = "\t")
+# Clean up unplaced contigs
+unplaced <- "chrUn|_alt|_random|KI|chrM"
+scored <- scored[!grepl(unplaced, scored$V1, perl = TRUE), ]
+unscored <- unscored[!grepl(unplaced, unscored$V14, perl = TRUE), ]
 # data <- read.csv("D:/Users/steve/Documents/Projects/RNASeq/lncRNAs/data/Analysis4_up.csv")
 data <- read.csv(fileNameIn1)
 newdata <- read.table(fileNameIn4, sep = "\t", header = F)
@@ -26,7 +31,7 @@ for (i in 1:dim(newdata)[1]) {
   chrom.list[[i]] <- identifier
 }
 
-newdata$V7 <- chrom.list
+newdata$V7 <- unlist(chrom.list)
 
 #match identifiers in sorted data and original data, add gene name to sorted data
 for (i in 1:dim(newscored)[1]) {
@@ -72,12 +77,13 @@ library(ChIPpeakAnno)
 library(dplyr)
 library(annotables)
 library(tibble)
-
-#create directory for results
-dir.create("annoData_results")
+library(EnsDb.Hsapiens.v86)
+library(TxDb.Hsapiens.UCSC.hg38.knownGene)
+library(org.Hs.eg.db)
+#prepare annotation data
+annoData <- toGRanges(EnsDb.Hsapiens.v86, feature="gene")
 
 annotated_list <- list()
-
 #run ChIPpeakAnno
 for (i in 1:length(all_names)){
   tryCatch({
@@ -92,41 +98,16 @@ for (i in 1:length(all_names)){
     
     #establish index of human sequences not found
     gr1 <- toGRanges(bed, format="BED", header=TRUE)
-    gr1$score <- as.numeric(gr1$score) 
-    gr2 <- gr1
-    ol <- findOverlapsOfPeaks(gr1, gr2)
-    ol <- addMetadata(ol, colNames="score", FUN=mean) 
-    
-    #prepare annotation data
-    library(EnsDb.Hsapiens.v86)
-    annoData <- toGRanges(EnsDb.Hsapiens.v86, feature="gene")
-    overlaps <- ol$peaklist[["gr1///gr2"]]
-    binOverFeature(overlaps, annotationData=annoData,
-                   radius=5000, nbins=20, FUN=length, errFun=0,
-                   ylab="count", 
-                   main="Distribution of aggregated peak numbers around TSS")
-    
-    
-    library(TxDb.Hsapiens.UCSC.hg38.knownGene)
-    aCR<-assignChromosomeRegion(overlaps, nucleotideLevel=FALSE, 
-                                precedence=c("Promoters", "immediateDownstream", 
-                                             "fiveUTRs", "threeUTRs", 
-                                             "Exons", "Introns"), 
-                                TxDb=TxDb.Hsapiens.UCSC.hg38.knownGene)
-    barplot(aCR$percentage, las=3)
-    
-    overlaps.anno <- annoPeaks(overlaps, 
+
+    overlaps.anno <- annoPeaks(gr1, 
                                annoData=annoData, 
                                output="nearestBiDirectionalPromoters",
-                               bindingRegion=c(-2000, 500))
-    library(org.Hs.eg.db)
+                               bindingRegion=c(-5000, 5000))
     overlaps.anno <- addGeneIDs(overlaps.anno,
                                 "org.Hs.eg.db",
                                 IDs2Add = "entrez_id")
-    head(overlaps.anno)
-    overlaps.anno$peakNames <- NULL
     #write files for each annoData entry
-    write.csv(as.data.frame(unname(overlaps.anno)), file = paste0("./annoData_results/",var,"_annoData.csv"))
+    # write.csv(as.data.frame(unname(overlaps.anno)), file = file.path(dirOut1, paste0(var,"_annoData.csv")))
     #create list of data frames from annoData entries
     annotated_list <- c(annotated_list,list(as.data.frame(unname(overlaps.anno))))
     names(annotated_list)[length(annotated_list)] <- var
@@ -139,7 +120,6 @@ for (i in 1:dim(newscored)[1]) {
 }
 
 #adding score and identity back from newscored/all_names into annoData
-
 for (i in 1:length(annotated_list)){
   gene_name <- names(annotated_list)[i]
   for (k in 1:dim(annotated_list[[1]])[1]) {
@@ -163,8 +143,9 @@ for (i in 1:length(annotated_list)){
 }
 
 #joining the compiled list
-dir.create("compiled_results")
-analysis <- data.frame()
+#create directory for results
+unlink(dirOut1, recursive = TRUE)
+dir.create(dirOut1)
 
 for (i in 1:length(data$genes)){
   var <- data$genes[i]
@@ -178,11 +159,11 @@ for (i in 1:length(data$genes)){
     analysis <- rbind(rows, rows[rep(1, dim(annoData_df)[1] - 1),])
     #add in annoData by columns
     analysis[1:dim(annoData_df)[1],c("mm10_chr", "mm10_start", "mm10_end","mm10_strand")] <- newdata[i,c("chrom","chromStart","chromEnd", "strand")]
-    analysis[,c("hg38_chr", "hg38_start", "hg38_end", "hg38_strand", "score", "feature", "feature.ranges.start", "feature.ranges.end", "feature.ranges.width", "feature.strand", "distance", "insideFeature", "distanceToSite", "gene_name", "entrez_id")] <- annoData_df[,c("seqnames","start","end", "strand", "score", "feature", "feature.ranges.start", "feature.ranges.end", "feature.ranges.width", "feature.strand", "distance", "insideFeature", "distanceToSite", "gene_name", "entrez_id")]
+    analysis[,c("hg38_chr", "hg38_start", "hg38_end", "hg38_strand", "alignment.score", "feature", "feature.ranges.start", "feature.ranges.end", "feature.ranges.width", "feature.strand", "distance", "insideFeature", "distanceToSite", "gene_name", "entrez_id")] <- annoData_df[,c("seqnames","start","end", "strand", "score", "feature", "feature.ranges.start", "feature.ranges.end", "feature.ranges.width", "feature.strand", "distance", "insideFeature", "distanceToSite", "gene_name", "entrez_id")]
     analysis <- analysis %>%
-      add_column(identity  = annoData_df[,"identity"], .after = "score") 
+      add_column(identity  = annoData_df[,"identity"], .after = "alignment.score") 
     #sort columns
-    analysis <- analysis[with(analysis,order(-score,identity,distance)),]
-    write.csv(analysis, file = paste0("./compiled_results/","0",i,"_",var,"_",symbol,".csv"))
+    analysis <- analysis[with(analysis, base::order(alignment.score, identity, -distance, decreasing =TRUE)),]
+    write.csv(analysis, file = file.path(dirOut1, paste0(sprintf("%03d_", i), var, "_", symbol, ".csv")))
   }
 }

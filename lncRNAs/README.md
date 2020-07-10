@@ -7,35 +7,37 @@ Map mouse lncRNA regions to the homologous regions in the human genome, understa
 ## Strategy
 
 - Data: `data/Analysis4_up.csv` - most upregulated lncRNAs, Ensembl IDs
-- Extract mm10/GRcM38 genomic coordinates of lncRNAs in BED format, [01_xlstobed.R](scripts/01_xlstobed.R)
+- [01_xlstobed.R](scripts/01_xlstobed.R) - Extract mm10/GRcM38 genomic coordinates of lncRNAs in BED format
     - Use https://github.com/stephenturner/annotables
     - Save the results in BED format, https://genome.ucsc.edu/FAQ/FAQformat.html#format1. Use "." placeholders for 'name' and 'score'. Convert 1/-1 for 'strand' to "+/-"
     - Output - `sorted.bed` file
 
-- Extract mouse genomic sequences for the corresponding coordinates [02_bedtofasta.sh](scripts/02_bedtofasta.sh)
+- [02_bedtofasta.sh](scripts/02_bedtofasta.sh) - Extract mouse genomic sequences for the corresponding coordinates 
     - Download FASTA mouse genome, http://hgdownload.cse.ucsc.edu/goldenpath/mm10/bigZips/mm10.fa.gz 
     - Install BedTools using homebrew, use https://bedtools.readthedocs.io/en/latest/content/tools/getfasta.html to extract genomic sequences of mouse lncRNAs
     - Output - `results.fasta`
 
-- Find best match using the BLAT tool at http://genome.ucsc.edu/cgi-bin/hgBlat?hgsid=855906545_xLt1HgMeSGZinsMVUai4xeV7IN0K&command=start
+- [04_blat_align.sh](scripts/04_blat_align.sh) - Find best match using BLAT     
     - Download FASTA human genome, http://hgdownload.cse.ucsc.edu/goldenpath/hg38/bigZips/hg38.fa.gz
-    - Submit `results.fasta` to BLAT [04_blat_align.sh](scripts/04_blat_align.sh)
+    - Install miniconda, https://docs.conda.io/projects/conda/en/latest/user-guide/install/macos.html
+    - Activate the environment `conda create --name blat`
+    - Install blat, https://shanguangyu.com/articles/install-blat-on-mac-with-one-liner-command/
+    - Install pslScore, https://bioconda.github.io/recipes/ucsc-pslscore/README.html
     - Output - `blat_results.psl` and `blat_results_scored`
-    - The output will have multiple matches per mouse sequence
-    - Save the coordinates of all hits for each mouse sequence in BED format, considering strand
-        - Tab-separated BED format: CHROM, START, END, QUERY, SCORE, STRAND, QSIZE, IDENTITY, SPAN
-            - We may need columns after strand for later filtering at step 4
 
-- Outcome 4: Annotate human genomic regions associated with mouse lncRNAs
+- [05_sorting.R](scripts/05_sorting.R) Annotate human genomic regions associated with mouse lncRNAs
     - Having a BED file of coordinates, use `ChIPpeakAnno` to annotate them with nearby or overlapping human transcripts, https://www.bioconductor.org/packages/release/bioc/vignettes/ChIPpeakAnno/inst/doc/pipeline.html
     - Sort the resulting data frame by multiple columns: https://stackoverflow.com/questions/1296646/how-to-sort-a-dataframe-by-multiple-columns
         - Max score
         - Max identity
         - Min distance
     - Save the results in separate files for each lncRNA
-        - Name each file as, e.g., `01_ENSMUSG00000097709_2810429I04Rik.csv`
+        - Name each file as, e.g., `001_ENSMUSG00000097709_2810429I04Rik.csv`
             - The counts are in the order of the original lncRNA file
             - The EnsemblIDs and the lncRNA names will help to identify results of interest
+    - Legend: Each folder is named after the analysis. Annotations for each lncRNA are stored in individual files because one lncRNA can have multiple matches in the target genome. Files are named as `001_ENSMUSG00000097709_2810429I04Rik.csv` - numbers are in the order of highest differential expression, Ensembl IDs and symbols are to recognize a lncRNA. Columns include 1) differential expression section, 2) genomic coordinates of the lncRNA and the corresponding matches, "alignment.score" - overall alignment quality, higher the better, "identity" - percent identity to the target genome, higher the better, 3) annotation block, "distance" - closest distance to the feature, "insideFeature" - where the alignment is located, "gene_name" - name of the closest transcript. Each lncRNA-specific data is sorted by largest "alignment.score", then by largest "identity", then by smallest "distance". The rationale is to prioritize best and closest alignments. 
+
+
 
 ## Notes
 
